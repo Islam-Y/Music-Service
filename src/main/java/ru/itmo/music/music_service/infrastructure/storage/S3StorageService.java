@@ -20,6 +20,9 @@ import ru.itmo.music.music_service.config.S3Properties;
 import java.net.URL;
 import java.time.Duration;
 
+/**
+ * S3-backed StorageService that issues presigned URLs and wraps basic object operations.
+ */
 @Component
 @RequiredArgsConstructor
 public class S3StorageService implements StorageService {

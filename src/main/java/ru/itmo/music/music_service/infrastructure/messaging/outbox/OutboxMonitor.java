@@ -1,6 +1,6 @@
 package ru.itmo.music.music_service.infrastructure.messaging.outbox;
 
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -9,7 +9,7 @@ import ru.itmo.music.music_service.infrastructure.persistence.OutboxRepository;
 import ru.itmo.music.music_service.infrastructure.persistence.entity.enums.OutboxStatus;
 
 @Component
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class OutboxMonitor {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxMonitor.class);

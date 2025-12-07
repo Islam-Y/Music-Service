@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
       id: 2-create-track-facts
-      author: codex
+      author: musicians
       changes:
         - sqlFile:
             path: ddl/create-track-facts.sql

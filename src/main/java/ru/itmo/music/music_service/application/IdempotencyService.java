@@ -1,32 +1,29 @@
 package ru.itmo.music.music_service.application;
 
+import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Optional;
 
+/**
+ * Stores idempotency metadata in Redis (payload hash + trackId) for track creation requests.
+ */
 @Service
+@AllArgsConstructor
 public class IdempotencyService {
 
     private final StringRedisTemplate redisTemplate;
+    @Value("${app.idempotency.track-ttl-seconds:86400}")
     private final long ttlSeconds;
     private final ObjectMapper objectMapper;
-
-    public IdempotencyService(StringRedisTemplate redisTemplate,
-                              ObjectMapper objectMapper,
-                              @Value("${app.idempotency.track-ttl-seconds:86400}") long ttlSeconds) {
-        this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
-        this.ttlSeconds = ttlSeconds;
-    }
 
     public Optional<IdempotencyEntry> getEntry(String idempotencyKey) {
         String value = redisTemplate.opsForValue().get(key(idempotencyKey));
@@ -43,7 +40,7 @@ public class IdempotencyService {
 
     public void saveEntry(String idempotencyKey, String trackId, Object payload) {
         try {
-            String payloadHash = hashPayload(payload);
+            String payloadHash = getHashPayload(payload);
             IdempotencyEntry entry = new IdempotencyEntry(trackId, payloadHash);
             redisTemplate.opsForValue().set(key(idempotencyKey),
                     objectMapper.writeValueAsString(entry),
@@ -57,7 +54,7 @@ public class IdempotencyService {
         return "idemp:track:" + idempotencyKey;
     }
 
-    public String hashPayload(Object payload) {
+    public String getHashPayload(Object payload) {
         try {
             byte[] bytes = objectMapper.writeValueAsBytes(payload);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

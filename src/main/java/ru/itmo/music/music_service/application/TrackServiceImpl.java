@@ -1,12 +1,11 @@
 package ru.itmo.music.music_service.application;
 
-import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.itmo.music.music_service.api.dto.BatchTracksRequest;
@@ -24,13 +23,12 @@ import ru.itmo.music.music_service.application.exception.ConflictException;
 import ru.itmo.music.music_service.application.exception.DomainValidationException;
 import ru.itmo.music.music_service.application.exception.NotFoundException;
 import ru.itmo.music.music_service.application.mapper.TrackMapper;
-import ru.itmo.music.music_service.application.IdempotencyService;
+import ru.itmo.music.music_service.config.S3Properties;
 import ru.itmo.music.music_service.infrastructure.messaging.FactsEventsPublisher;
 import ru.itmo.music.music_service.infrastructure.messaging.domain.TrackDomainEventEmitter;
 import ru.itmo.music.music_service.infrastructure.storage.StorageService;
 import ru.itmo.music.music_service.infrastructure.persistence.TrackJpaRepository;
 import ru.itmo.music.music_service.infrastructure.persistence.entity.TrackEntity;
-import ru.itmo.music.music_service.application.TrackCacheService;
 
 import java.time.Instant;
 import java.time.Year;
@@ -44,7 +42,6 @@ import java.util.stream.Collectors;
  * Default implementation of TrackService. Integrations (DB/Redis/S3/Kafka/Facts) to be wired here.
  */
 @Service
-@AllArgsConstructor
 public class TrackServiceImpl implements TrackService {
 
     private static final Logger log = LoggerFactory.getLogger(TrackServiceImpl.class);
@@ -57,6 +54,26 @@ public class TrackServiceImpl implements TrackService {
     private final StorageService storageService;
     private final IdempotencyService idempotencyService;
     private final long streamUrlTtlSeconds;
+
+    public TrackServiceImpl(TrackJpaRepository trackRepository,
+                            TrackMapper trackMapper,
+                            FactsEventsPublisher factsEventsPublisher,
+                            TrackCacheService trackCacheService,
+                            TrackDomainEventEmitter trackDomainEventEmitter,
+                            StorageService storageService,
+                            IdempotencyService idempotencyService,
+                            @Value("${app.stream-url.ttl-seconds:${app.s3.presign-ttl-seconds:600}}") long streamUrlTtlSeconds,
+                            S3Properties s3Properties) {
+        this.trackRepository = trackRepository;
+        this.trackMapper = trackMapper;
+        this.factsEventsPublisher = factsEventsPublisher;
+        this.trackCacheService = trackCacheService;
+        this.trackDomainEventEmitter = trackDomainEventEmitter;
+        this.storageService = storageService;
+        this.idempotencyService = idempotencyService;
+        // Never advertise expiration longer than the presigned URL validity window.
+        this.streamUrlTtlSeconds = Math.min(streamUrlTtlSeconds, s3Properties.getPresignTtlSeconds());
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -157,13 +174,13 @@ public class TrackServiceImpl implements TrackService {
             changed.append("coverUrl,");
         }
 
-        if (changed.length() == 0) {
+        if (changed.isEmpty()) {
             throw new DomainValidationException("No changes detected");
         }
 
         TrackEntity saved = trackRepository.save(entity);
         factsEventsPublisher.publishTrackUpdated(trackId);
-        String changedFields = changed.length() > 0 ? changed.substring(0, changed.length() - 1) : null;
+        String changedFields = !changed.isEmpty() ? changed.substring(0, changed.length() - 1) : null;
         trackDomainEventEmitter.emitUpdated(saved, changedFields);
         TrackDetailsResponse response = trackMapper.toDetails(saved);
         trackCacheService.putTrack(trackId, response);
@@ -196,7 +213,7 @@ public class TrackServiceImpl implements TrackService {
             if (entry.isPresent()) {
                 TrackEntity existing = trackRepository.findById(entry.get().trackId())
                         .orElseThrow(() -> new NotFoundException("Track not found for idempotency key"));
-                String payloadHash = idempotencyService.hashPayload(request);
+                String payloadHash = idempotencyService.getHashPayload(request);
                 if (!payloadHash.equals(entry.get().payloadHash())) {
                     throw new ConflictException("Idempotency-Key already used with different payload");
                 }

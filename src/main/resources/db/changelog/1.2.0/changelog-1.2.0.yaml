@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
       id: 3-create-outbox
-      author: codex
+      author: musicians
       changes:
         - sqlFile:
             path: ddl/create-outbox.sql

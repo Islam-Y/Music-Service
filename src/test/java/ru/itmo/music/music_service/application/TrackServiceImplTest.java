@@ -7,8 +7,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.itmo.music.music_service.api.dto.CreateTrackRequest;
 import ru.itmo.music.music_service.application.exception.ConflictException;
-import ru.itmo.music.music_service.application.exception.NotFoundException;
 import ru.itmo.music.music_service.application.mapper.TrackMapper;
+import ru.itmo.music.music_service.config.S3Properties;
 import ru.itmo.music.music_service.infrastructure.messaging.FactsEventsPublisher;
 import ru.itmo.music.music_service.infrastructure.messaging.domain.TrackDomainEventEmitter;
 import ru.itmo.music.music_service.infrastructure.persistence.TrackJpaRepository;
@@ -45,10 +45,12 @@ class TrackServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        S3Properties s3Properties = new S3Properties();
+        s3Properties.setPresignTtlSeconds(600);
         trackService = new TrackServiceImpl(
                 trackRepository, trackMapper, factsEventsPublisher,
                 trackCacheService, trackDomainEventEmitter, storageService,
-                idempotencyService, 600
+                idempotencyService, 600, s3Properties
         );
     }
 
@@ -72,7 +74,7 @@ class TrackServiceImplTest {
         when(idempotencyService.getEntry(key))
                 .thenReturn(Optional.of(new IdempotencyService.IdempotencyEntry(existing.getId(), "hash-old")));
         when(trackRepository.findById(existing.getId())).thenReturn(Optional.of(existing));
-        when(idempotencyService.hashPayload(request)).thenReturn("hash-new");
+        when(idempotencyService.getHashPayload(request)).thenReturn("hash-new");
 
         assertThrows(ConflictException.class, () -> trackService.createTrack(request, key));
 
@@ -99,7 +101,7 @@ class TrackServiceImplTest {
 
         when(idempotencyService.getEntry(key))
                 .thenReturn(Optional.of(new IdempotencyService.IdempotencyEntry(existing.getId(), "hash")));
-        when(idempotencyService.hashPayload(request)).thenReturn("hash");
+        when(idempotencyService.getHashPayload(request)).thenReturn("hash");
         when(trackRepository.findById(existing.getId())).thenReturn(Optional.of(existing));
 
         var response = trackService.createTrack(request, key);

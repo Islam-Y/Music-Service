@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
       id: 4-unique-audio-storage-key
-      author: codex
+      author: musicians
       changes:
         - sqlFile:
             path: ddl/add-unique-audio-storage-key.sql

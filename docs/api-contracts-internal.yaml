@@ -1,20 +1,23 @@
 openapi: 3.0.3
 info:
-  title: Music Service Internal API
-  version: 0.1.0
-  description: Internal endpoints for track metadata, batch fetch, search, stream URL, and creation.
+  title: Music Service API (internal & public)
+  version: 0.2.0
+  description: Internal endpoints (CRUD, batch, search, stream URL, upload URL, facts) and public read-only endpoints.
 servers:
   - url: https://music-service.internal
     description: Internal network entrypoint
+  - url: https://music-service
+    description: Public via API Gateway/BFF
 tags:
-  - name: Tracks
+  - name: Internal Tracks
+  - name: Public Tracks
 security:
   - bearerAuth: []
 paths:
   /internal/tracks/{trackId}:
     get:
       summary: Get track details
-      tags: [Tracks]
+      tags: [Internal Tracks]
       parameters:
         - name: trackId
           in: path
@@ -30,10 +33,222 @@ paths:
                 $ref: '#/components/schemas/TrackDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update track metadata (partial)
+      tags: [Internal Tracks]
+      parameters:
+        - name: trackId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTrackRequest'
+      responses:
+        '200':
+          description: Updated track
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackDetails'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Delete track
+      tags: [Internal Tracks]
+      parameters:
+        - name: trackId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /internal/tracks:
     get:
       summary: Search/list tracks
-      tags: [Tracks]
+      tags: [Internal Tracks]
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Track list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TracksSearchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      summary: Create track
+      tags: [Internal Tracks]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTrackRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateTrackResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /internal/tracks/upload-url:
+    post:
+      summary: Create presigned upload URL for audio
+      tags: [Internal Tracks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadTrackRequest'
+      responses:
+        '201':
+          description: Upload URL created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadTrackResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /internal/tracks/batch:
+    post:
+      summary: Get tracks by ids
+      tags: [Internal Tracks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchTracksRequest'
+      responses:
+        '200':
+          description: Batch response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchTracksResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /internal/tracks/{trackId}/stream-url:
+    get:
+      summary: Get stream/download URL
+      tags: [Internal Tracks]
+      parameters:
+        - name: trackId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Presigned stream URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamUrlResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /internal/tracks/{trackId}/facts:
+    get:
+      summary: Get track facts
+      tags: [Internal Tracks]
+      parameters:
+        - name: trackId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Facts for track
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackFacts'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /internal/tracks/{trackId}/facts/refresh:
+    post:
+      summary: Refresh track facts (trigger regeneration)
+      tags: [Internal Tracks]
+      parameters:
+        - name: trackId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: priority
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Refresh request accepted/queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackFactsRefreshResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tracks:
+    get:
+      summary: Public search/list tracks
+      tags: [Public Tracks]
       parameters:
         - name: query
           in: query
@@ -64,55 +279,31 @@ paths:
                 $ref: '#/components/schemas/TracksSearchResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
-    post:
-      summary: Create track
-      tags: [Tracks]
+
+  /tracks/{trackId}:
+    get:
+      summary: Public get track details
+      tags: [Public Tracks]
       parameters:
-        - name: Idempotency-Key
-          in: header
-          required: false
+        - name: trackId
+          in: path
+          required: true
           schema:
             type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateTrackRequest'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CreateTrackResponse'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '409':
-          $ref: '#/components/responses/Conflict'
-  /internal/tracks/batch:
-    post:
-      summary: Get tracks by ids
-      tags: [Tracks]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BatchTracksRequest'
       responses:
         '200':
-          description: Batch response
+          description: Track details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BatchTracksResponse'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-  /internal/tracks/{trackId}/stream-url:
+                $ref: '#/components/schemas/TrackDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tracks/{trackId}/stream-url:
     get:
-      summary: Get stream/download URL
-      tags: [Tracks]
+      summary: Public get stream/download URL
+      tags: [Public Tracks]
       parameters:
         - name: trackId
           in: path
@@ -130,10 +321,11 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-  /internal/tracks/{trackId}/facts:
+
+  /tracks/{trackId}/facts:
     get:
-      summary: Get track facts
-      tags: [Tracks]
+      summary: Public get track facts
+      tags: [Public Tracks]
       parameters:
         - name: trackId
           in: path
@@ -149,31 +341,7 @@ paths:
                 $ref: '#/components/schemas/TrackFacts'
         '404':
           $ref: '#/components/responses/NotFound'
-    post:
-      summary: Refresh track facts (trigger regeneration)
-      tags: [Tracks]
-      parameters:
-        - name: trackId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: priority
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 0
-            default: 0
-      responses:
-        '200':
-          description: Refresh request accepted/queued
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TrackFactsRefreshResponse'
-        '404':
-          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -191,9 +359,6 @@ components:
           type: string
         artist:
           type: string
-        album:
-          type: string
-          nullable: true
         coverUrl:
           type: string
           format: uri
@@ -207,11 +372,6 @@ components:
         explicit:
           type: boolean
           default: false
-        popularity:
-          type: integer
-          minimum: 0
-          maximum: 100
-          nullable: true
     TrackDetails:
       allOf:
         - $ref: '#/components/schemas/TrackSummary'
@@ -269,9 +429,6 @@ components:
         artist:
           type: string
           maxLength: 255
-        album:
-          type: string
-          maxLength: 255
         durationMs:
           type: integer
           minimum: 1
@@ -290,10 +447,28 @@ components:
           type: string
           format: uri
           maxLength: 1024
-        popularity:
+    UpdateTrackRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        artist:
+          type: string
+          maxLength: 255
+        durationMs:
           type: integer
-          minimum: 0
-          maximum: 100
+          minimum: 1
+        year:
+          type: integer
+          minimum: 1900
+          maximum: 3000
+        explicit:
+          type: boolean
+        coverUrl:
+          type: string
+          format: uri
+          maxLength: 1024
     CreateTrackResponse:
       type: object
       required: [id]
@@ -301,6 +476,28 @@ components:
         id:
           type: string
         createdAt:
+          type: string
+          format: date-time
+    UploadTrackRequest:
+      type: object
+      required: [fileName, contentType]
+      properties:
+        fileName:
+          type: string
+          maxLength: 255
+        contentType:
+          type: string
+          maxLength: 64
+    UploadTrackResponse:
+      type: object
+      required: [storageKey, uploadUrl, expiresAt]
+      properties:
+        storageKey:
+          type: string
+        uploadUrl:
+          type: string
+          format: uri
+        expiresAt:
           type: string
           format: date-time
     TracksSearchResponse:

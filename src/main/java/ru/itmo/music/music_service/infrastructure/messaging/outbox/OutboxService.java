@@ -1,5 +1,6 @@
 package ru.itmo.music.music_service.infrastructure.messaging.outbox;
 
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,8 +15,11 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Persists domain events in the outbox table with trace metadata for later asynchronous delivery.
+ */
 @Service
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class OutboxService {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxService.class);

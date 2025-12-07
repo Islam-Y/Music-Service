@@ -37,7 +37,7 @@ public class TrackCacheService {
     private long factsTtlSeconds;
 
     public Optional<TrackDetailsResponse> getTrack(String trackId) {
-        String key = trackKey(trackId);
+        String key = getTrackKey(trackId);
         String value = redisTemplate.opsForValue().get(key);
         if (value == null) {
             return Optional.empty();
@@ -53,7 +53,7 @@ public class TrackCacheService {
 
     public void putTrack(String trackId, TrackDetailsResponse track) {
         try {
-            redisTemplate.opsForValue().set(trackKey(trackId),
+            redisTemplate.opsForValue().set(getTrackKey(trackId),
                     objectMapper.writeValueAsString(track),
                     Duration.ofSeconds(trackTtlSeconds));
         } catch (JacksonException e) {
@@ -62,11 +62,11 @@ public class TrackCacheService {
     }
 
     public void evictTrack(String trackId) {
-        redisTemplate.delete(trackKey(trackId));
+        redisTemplate.delete(getTrackKey(trackId));
     }
 
     public Optional<StreamUrlResponse> getStreamUrl(String trackId) {
-        String key = streamUrlKey(trackId);
+        String key = getStreamUrlKey(trackId);
         String value = redisTemplate.opsForValue().get(key);
         if (value == null) {
             return Optional.empty();
@@ -82,7 +82,7 @@ public class TrackCacheService {
 
     public void putStreamUrl(String trackId, StreamUrlResponse streamUrl) {
         try {
-            redisTemplate.opsForValue().set(streamUrlKey(trackId),
+            redisTemplate.opsForValue().set(getStreamUrlKey(trackId),
                     objectMapper.writeValueAsString(streamUrl),
                     Duration.ofSeconds(streamUrlTtlSeconds));
         } catch (JacksonException e) {
@@ -91,11 +91,11 @@ public class TrackCacheService {
     }
 
     public void evictStreamUrl(String trackId) {
-        redisTemplate.delete(streamUrlKey(trackId));
+        redisTemplate.delete(getStreamUrlKey(trackId));
     }
 
     public Optional<TrackFactsResponse> getTrackFacts(String trackId) {
-        String key = factsKey(trackId);
+        String key = getFactsKey(trackId);
         String value = redisTemplate.opsForValue().get(key);
         if (value == null) {
             return Optional.empty();
@@ -111,7 +111,7 @@ public class TrackCacheService {
 
     public void putTrackFacts(String trackId, TrackFactsResponse facts) {
         try {
-            redisTemplate.opsForValue().set(factsKey(trackId),
+            redisTemplate.opsForValue().set(getFactsKey(trackId),
                     objectMapper.writeValueAsString(facts),
                     Duration.ofSeconds(factsTtlSeconds));
         } catch (JacksonException e) {
@@ -120,18 +120,18 @@ public class TrackCacheService {
     }
 
     public void evictTrackFacts(String trackId) {
-        redisTemplate.delete(factsKey(trackId));
+        redisTemplate.delete(getFactsKey(trackId));
     }
 
-    private String trackKey(String trackId) {
+    private String getTrackKey(String trackId) {
         return "track:" + trackId;
     }
 
-    private String streamUrlKey(String trackId) {
+    private String getStreamUrlKey(String trackId) {
         return "track:" + trackId + ":streamUrl";
     }
 
-    private String factsKey(String trackId) {
+    private String getFactsKey(String trackId) {
         return "track:" + trackId + ":facts";
     }
 }

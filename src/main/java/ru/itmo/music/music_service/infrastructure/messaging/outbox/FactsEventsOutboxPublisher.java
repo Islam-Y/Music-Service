@@ -1,14 +1,13 @@
 package ru.itmo.music.music_service.infrastructure.messaging.outbox;
 
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 import ru.itmo.music.music_service.infrastructure.messaging.FactsEventsPublisher;
-import ru.itmo.music.music_service.infrastructure.persistence.entity.TrackEntity;
 
 import java.time.Instant;
 
 @Component
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class FactsEventsOutboxPublisher implements FactsEventsPublisher {
 
     private final OutboxService outboxService;
