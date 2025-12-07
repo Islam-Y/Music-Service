@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 4-unique-audio-storage-key
+      author: codex
+      changes:
+        - sqlFile:
+            path: ddl/add-unique-audio-storage-key.sql
+            relativeToChangelogFile: true
+            stripComments: true
+            splitStatements: true
+      rollback:
+        - sqlFile:
+            path: ddl/add-unique-audio-storage-key-rollback.sql
+            relativeToChangelogFile: true
+            stripComments: true
+            splitStatements: true

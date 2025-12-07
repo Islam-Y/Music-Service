@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 3-create-outbox
+      author: codex
+      changes:
+        - sqlFile:
+            path: ddl/create-outbox.sql
+            relativeToChangelogFile: true
+            stripComments: true
+            splitStatements: true
+      rollback:
+        - sqlFile:
+            path: ddl/create-outbox-rollback.sql
+            relativeToChangelogFile: true
+            stripComments: true
+            splitStatements: true

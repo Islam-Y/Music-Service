@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2-create-track-facts
+      author: codex
+      changes:
+        - sqlFile:
+            path: ddl/create-track-facts.sql
+            relativeToChangelogFile: true
+            stripComments: true
+            splitStatements: true
+      rollback:
+        - sqlFile:
+            path: ddl/create-track-facts-rollback.sql
+            relativeToChangelogFile: true
+            stripComments: true
+            splitStatements: true
